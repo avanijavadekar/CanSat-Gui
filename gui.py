@@ -1,9 +1,43 @@
 import sys
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QLCDNumber, QMainWindow
 from PyQt5.QtCore import QTime, QTimer
 from datetime import datetime
+import random
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+
+class LivePlotCanvas(FigureCanvas):
+    def __init__(self, parent=None, title="", ylabel=""):
+        self.fig = Figure(figsize=(5, 3), dpi=100)
+        self.ax = self.fig.add_subplot(111)
+        self.ax.set_title(title)
+        self.ax.set_xlabel("Time (s)")
+        self.ax.set_ylabel(ylabel)
+        super().__init__(self.fig)
+
+        self.x_data = []
+        self.y_data = []
+
+    def update_plot(self, new_y, time_step):
+        self.x_data.append(time_step)
+        self.y_data.append(new_y)
+
+        # keep only last 50 points for readability
+        if len(self.x_data) > 50:
+            self.x_data.pop(0)
+            self.y_data.pop(0)
+
+        self.ax.clear()
+        self.ax.plot(self.x_data, self.y_data, color="cyan")
+        self.ax.set_title(self.ax.get_title())
+        self.ax.set_xlabel("Time (s)")
+        self.ax.set_ylabel(self.ax.get_ylabel())
+        self.ax.grid(True)
+        self.draw()
+
+
 
 
 class Ui_MainWindow(object):
@@ -529,6 +563,23 @@ class Ui_MainWindow(object):
         self.lcdNumber = QtWidgets.QLCDNumber(self.centralwidget)
         self.lcdNumber.setGeometry(QtCore.QRect(970, 10, 64, 23))
         self.lcdNumber.setObjectName("lcdNumber")
+        #
+        self.plot_layout = QtWidgets.QVBoxLayout()
+        self.centralwidget.setLayout(self.plot_layout)
+        self.altitude_plot = LivePlotCanvas(title="Altitude", ylabel="Altitude (m)")
+        self.altitude_plot.setGeometry(QtCore.QRect(50, 100, 100, 50))
+        self.angular_plot = LivePlotCanvas(title="Angular Velocity", ylabel="ω (deg/s)")
+        self.angular_plot.setGeometry(QtCore.QRect(50, 200, 100, 50))
+        self.plot_layout.addWidget(self.altitude_plot)
+        self.plot_layout.addWidget(self.angular_plot)  #
+        #
+        # Timer to update plots
+        self.plot_timer = QTimer()
+        self.plot_timer.timeout.connect(self.update_plots)
+        self.plot_timer.start(1000)
+        self.time_step = 0
+        #
+
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 1424, 26))
@@ -615,6 +666,16 @@ class Ui_MainWindow(object):
         self.groupBox_8.setTitle(_translate("MainWindow", "Battery Power:"))
         self.groupBox_9.setTitle(_translate("MainWindow", "Health data:"))
         self.label_27.setText(_translate("MainWindow", "RSSI LoRa:"))
+
+    def update_plots(self): 
+         self.time_step += 1
+         # Simulated data (later replace with CSV/LoRa)
+         altitude_value = random.uniform(100, 500)
+         angular_velocity_value = random.uniform(-50, 50)
+
+         # Update both plots
+         self.altitude_plot.update_plot(altitude_value, self.time_step)
+         self.angular_plot.update_plot(angular_velocity_value, self.time_step)
 
 class TelemetryWindow(QMainWindow):
     def __init__(self):
